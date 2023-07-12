@@ -2,7 +2,7 @@
 An application for musicians capable of extracting instruments from songs and pitch shifting with very intuitive and easy to use interface. 
 exTrackt uses spleeter for instrument extraction and librosa for pitch shifting. GUI is written with PyQt5.
 
-A vocal-extracted and 6 semitones low-shifted version of You Give Love A Bad Name can be found es an example result of the application.
+A vocal-extracted and 6 semitones lower pitch version of You Give Love A Bad Name can be found es an example result of the application.
 
 ![alt text](https://user-images.githubusercontent.com/47466287/252976587-e1944316-7aab-4b3e-b1df-54bc6a6e8074.png)
 
