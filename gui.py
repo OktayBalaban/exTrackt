@@ -7,7 +7,6 @@ Created on Sat Jul  8 19:28:58 2023
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from TrackProcessor import TrackProcessor
-import time
 import os
 
 class Supervisor(QtCore.QObject):
@@ -16,7 +15,6 @@ class Supervisor(QtCore.QObject):
     def __init__(self, track_processor, input_file_path, output_directory_path):
         super().__init__()
         self.track_processor = track_processor
-        self.stemCount = 5
         self.input_file_path = input_file_path
         self.output_directory_path = output_directory_path
         self.instrumentsToStay = []
@@ -24,20 +22,17 @@ class Supervisor(QtCore.QObject):
         self.output_file_path = ""
 
     @QtCore.pyqtSlot()
-    def process(self):
+    def process(self, vocals, bass, drums, other):
+        if vocals:
+            self.instrumentsToStay.append("vocals")
+        if bass:
+            self.instrumentsToStay.append("bass")
+        if drums:
+            self.instrumentsToStay.append("drums")
+        if other:
+            self.instrumentsToStay.append("other")
         
-        if self.vocals_checkbox.isChecked():
-            instrumentsToStay.append("vocals")
-        if self.bass_checkbox.isChecked():
-            instrumentsToStay.append("bass")
-        if self.drums_checkbox.isChecked():
-            instrumentsToStay.append("drums")
-        if self.piano_checkbox.isChecked():
-            instrumentsToStay.append("piano")
-        if self.guitar_checkbox.isChecked():
-            instrumentsToStay.append("other")
-        
-        self.track_processor.separate(self.stemCount, self.input_file_path, self.output_directory_path)
+        self.track_processor.separate(self.input_file_path, self.output_directory_path)
         
         # Get the song name as spleeter creates a folder with song name
         self.song_name = os.path.splitext(os.path.basename(self.input_file_path))[0]
@@ -67,12 +62,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Music Separator")
+        self.setWindowTitle("exTrackt")
         
         #Track Processor
         self.track_processor = TrackProcessor()
 
-        #Buttons
+        # Buttons
         self.input_button = QtWidgets.QPushButton("Select Input Song")
         self.input_button.clicked.connect(self.select_input_file)
 
@@ -81,23 +76,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.separate_button = QtWidgets.QPushButton("Process")
         self.separate_button.clicked.connect(self.process)
-        
-        # Process button
-        self.separate_button = QtWidgets.QPushButton("Process")
-        self.separate_button.clicked.connect(self.process)
         self.separate_button.setDisabled(True)
-        
-        # Pitch shift button
+
         self.shift_pitch_button = QtWidgets.QPushButton("Shift Pitch")
         self.shift_pitch_button.clicked.connect(self.shift_pitch)
         self.shift_pitch_button.setDisabled(True)
-
 
         # Checkboxes for instruments
         self.vocals_checkbox = QtWidgets.QCheckBox("Vocals")
         self.bass_checkbox = QtWidgets.QCheckBox("Bass")
         self.drums_checkbox = QtWidgets.QCheckBox("Drums")
-        self.piano_checkbox = QtWidgets.QCheckBox("Piano")
         self.guitar_checkbox = QtWidgets.QCheckBox("Guitar/Other")
         
         # Semitone shift input field
@@ -114,28 +102,48 @@ class MainWindow(QtWidgets.QMainWindow):
         self.input_file_path = ""
         self.output_directory_path = ""
 
-        # Layout
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.addWidget(self.input_button)
-        self.layout.addWidget(self.input_file_label)
-        self.layout.addWidget(self.output_button)
-        self.layout.addWidget(self.output_directory_label)
-        
-        self.layout.addWidget(self.vocals_checkbox)
-        self.layout.addWidget(self.bass_checkbox)
-        self.layout.addWidget(self.drums_checkbox)
-        self.layout.addWidget(self.piano_checkbox)
-        self.layout.addWidget(self.guitar_checkbox)
-        self.layout.addWidget(self.separate_button)
-        
-        self.layout.addWidget(self.semitone_shift_input)
-        self.layout.addWidget(self.shift_pitch_button)
+        # Checkboxes for instruments inside a GroupBox
+        self.instruments_group = QtWidgets.QGroupBox("Instruments")
+        self.instruments_layout = QtWidgets.QVBoxLayout()
+        self.instruments_layout.addWidget(self.vocals_checkbox)
+        self.instruments_layout.addWidget(self.bass_checkbox)
+        self.instruments_layout.addWidget(self.drums_checkbox)
+        self.instruments_layout.addWidget(self.guitar_checkbox)
+        self.instruments_group.setLayout(self.instruments_layout)
 
+        # Main layout using GridLayout
+        self.layout = QtWidgets.QGridLayout()
+        self.layout.addWidget(self.input_button, 0, 0)
+        self.layout.addWidget(self.input_file_label, 0, 1)
+        self.layout.addWidget(self.output_button, 1, 0)
+        self.layout.addWidget(self.output_directory_label, 1, 1)
+        self.layout.addWidget(self.instruments_group, 2, 0, 1, 2)
+        self.layout.addWidget(self.separate_button, 3, 0, 1, 2)
+        self.layout.addWidget(self.semitone_shift_input, 4, 0)
+        self.layout.addWidget(self.shift_pitch_button, 4, 1)
 
         self.widget = QtWidgets.QWidget()
         self.widget.setLayout(self.layout)
 
         self.setCentralWidget(self.widget)
+
+        # Stylesheet
+        stylesheet = """
+            QPushButton {
+                font: bold 12px;
+                background-color: #333;
+                color: white;
+            }
+            QLabel {
+                font: 12px;
+            }
+            QGroupBox {
+                font: bold 14px;
+                color: #333;
+            }
+        """
+        self.setStyleSheet(stylesheet)
+
 
     def select_input_file(self):
         options = QtWidgets.QFileDialog.Options()
@@ -157,28 +165,19 @@ class MainWindow(QtWidgets.QMainWindow):
             
             
     def process(self):
-        # Merge selected instruments
-        instrumentsToStay = []
-
-
-        # Create a QThread object
-        self.thread = QtCore.QThread()
-        # Create a worker object
-        self.supervisor = Supervisor(self.track_processor, self.input_file_path, self.output_directory_path)
-
-        # Move worker to the thread
-        self.supervisor.moveToThread(self.thread)
         
-        # Connect signals and slots
-        self.thread.started.connect(self.supervisor.process)
+        self.thread = QtCore.QThread()
+        self.supervisor = Supervisor(self.track_processor, self.input_file_path, self.output_directory_path)
+        self.supervisor.moveToThread(self.thread)
+        self.thread.started.connect(lambda: self.supervisor.process(self.vocals_checkbox.isChecked(), 
+                                                            self.bass_checkbox.isChecked(),
+                                                            self.drums_checkbox.isChecked(), 
+                                                            self.guitar_checkbox.isChecked()))
         self.supervisor.finished.connect(self.thread.quit)
         self.supervisor.finished.connect(self.supervisor.deleteLater)
         self.thread.finished.connect(self.thread.deleteLater)
 
-        # Start the thread
         self.thread.start()
-
-        # Once the process starts, disable the button
         self.separate_button.setDisabled(True)
 
         # Enable the button when process is finished
@@ -189,18 +188,14 @@ class MainWindow(QtWidgets.QMainWindow):
             # Get the semitone shift amount from the input field
             semitones = int(self.semitone_shift_input.text())
           
-            # Create a QThread object for pitch shifting
             self.shift_thread = QtCore.QThread()
-            # Create a worker object
             self.shift_worker = Supervisor(self.track_processor, self.input_file_path, self.output_directory_path)
-            # Move the worker to the thread
             self.shift_worker.moveToThread(self.shift_thread)
-            # Connect signals and slots
-            self.shift_thread.started.connect(lambda: self.shift_worker.shift_pitch(semitones))  # Pass semitones argument
+            self.shift_thread.started.connect(lambda: self.shift_worker.shift_pitch(semitones))
             self.shift_worker.finished.connect(self.shift_thread.quit)
             self.shift_worker.finished.connect(self.shift_worker.deleteLater)
             self.shift_thread.finished.connect(self.shift_thread.deleteLater)
-            # Start the thread
+
             self.shift_thread.start()
     
         except ValueError:

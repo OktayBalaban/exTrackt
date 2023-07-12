@@ -8,7 +8,6 @@ Created on Sat Jul  8 13:41:56 2023
 from PyQt5 import QtWidgets
 from gui import MainWindow
 
-import warnings
 from filelock import FileLock, Timeout
 
 lock = FileLock("my_app.lock")
